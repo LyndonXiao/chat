@@ -1,0 +1,18 @@
+{
+  "name": "react-chat",
+  "version": "1.0.0",
+  "description": "啦啦啦",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "express": "^4.16.3",
+    "moment": "^2.21.0",
+    "mysql": "^2.15.0",
+    "socket.io": "^2.0.4"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "postbuild": "cd client && yarn --production=false && yarn run build"
+  }
+}
