@@ -9,9 +9,6 @@ const app = express();
 var server = require('http').createServer(app);
 var io = require('socket.io').listen(server); //引入socket.io模块并绑定到服务器
 
-//在线用户
-var online_users = [];
-
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }))
 // parse application/json
@@ -134,6 +131,9 @@ app.get('*', (req, res) => {
 const port = process.env.PORT || 5000;
 server.listen(port);
 console.log(`server listening on ${port}`);
+
+//在线用户
+var online_users = [];
 
 //socket部分
 io.on('connection', function (socket) {
