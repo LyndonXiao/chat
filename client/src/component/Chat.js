@@ -56,6 +56,17 @@ class Message extends Component {
         super(props);
     }
 
+    componentDidMount() {
+        const { scrollbars } = this.refs;
+            scrollbars.scrollToBottom();
+    }
+    
+    componentDidUpdate() {
+        const { scrollbars } = this.refs;
+        if(this.props.scrollToBottom)
+            scrollbars.scrollToBottom();
+    }
+
     session() {
         return this.state.sessions[this.state.sessionIndex];
     }
@@ -66,7 +77,7 @@ class Message extends Component {
         const friend = this.props.withFriend;
         const messages = session ? session.messages : [];
         return (
-            <Scrollbars style={{ width: '100%', height: 'calc(100% - 10pc)' }}
+            <Scrollbars ref="scrollbars" style={{ width: '100%', height: 'calc(100% - 10pc)' }}
                 autoHide
                 autoHideTimeout={1000}
                 autoHideDuration={200}>
@@ -180,37 +191,39 @@ class Chat extends Component {
                 }
             ],
             sessionIndex: 0,
+            scrollToBottom: true,
         };
     }
 
     componentDidMount() {
         document.getElementById('myInput').addEventListener('keyup', e => {
             var sessions = this.state.sessions;
-        const keycode = e.keyCode;
-        const text = e.target.value;
-        if (keycode === 13 && text && this.state.sessionIndex >= 0) {
-            sessions[this.state.sessionIndex].messages.push({
-                text: text,
-                date: moment().format('YYYY-MM-DD HH:mm:ss'),
-                self: true
-            });
-            sessions[this.state.sessionIndex].myInput = '';
-        } else if(this.state.sessionIndex >= 0) {
-            sessions[this.state.sessionIndex].myInput = text;
-        } else {
-            return ;
-        }
+            const keycode = e.keyCode;
+            const text = e.target.value;
+            if (keycode === 13 && text && this.state.sessionIndex >= 0) {
+                sessions[this.state.sessionIndex].messages.push({
+                    text: text,
+                    date: moment().format('YYYY-MM-DD HH:mm:ss'),
+                    self: true
+                });
+                sessions[this.state.sessionIndex].myInput = '';
+            } else if (this.state.sessionIndex >= 0) {
+                sessions[this.state.sessionIndex].myInput = text;
+            } else {
+                return;
+            }
 
-        this.setState({
-            sessions: sessions,
-        });
+            this.setState({
+                sessions: sessions,
+            });
         })
     }
 
     //设置选中的朋友
     selectFriend(item) {
         this.setState({
-            sessionIndex: this.state.friends.indexOf(item)
+            sessionIndex: this.state.friends.indexOf(item),
+            scrollToBottom: true,
         });
     }
 
@@ -237,6 +250,7 @@ class Chat extends Component {
         });
     }
 
+    //进行中会话
     session() {
         return this.state.sessions[this.state.sessionIndex] || null;
     }
@@ -251,7 +265,7 @@ class Chat extends Component {
                     <List friends={this.state.friends} withFriend={withFriend} selectFriend={this.selectFriend.bind(this)}></List>
                 </div>
                 <div className="main">
-                    <Message user={this.state.user} withFriend={withFriend} session={session}></Message>
+                    <Message user={this.state.user} withFriend={withFriend} session={session} scrollToBottom={this.state.scrollToBottom}></Message>
                     <Text session={session} myInput={this.myInput.bind(this)}></Text>
                 </div>
             </div>
