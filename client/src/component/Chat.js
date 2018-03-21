@@ -32,14 +32,36 @@ class List extends Component {
         super(props);
     }
 
-    render() {
-        const withFriend = this.props.withFriend ? this.props.withFriend.user_id : null;
+    sessionFriends() {
         const friends = this.props.friends;
+        const sessions = this.props.sessions;
+        var sessionFriends = [];
+        sessions.forEach(item => {
+            friends.forEach(frined => {
+                if(frined.user_id === item.user_id){
+                var sessionFriend = {
+                    user_id: frined.user_id,
+                    user_name: frined.user_name,
+                    user_avatar: frined.user_avatar,
+                    timestamp: item.timestamp
+                }
+                sessionFriends.push(sessionFriend);
+                }
+            })
+        })
+
+        return sessionFriends;
+    }
+
+    render() {
+        const sessionFriends = this.sessionFriends();
+        const withFriend = this.props.withFriend ? this.props.withFriend.user_id : null;
+        const sortedSessionFriends = sessionFriends.sort((a, b) => b['timestamp'] - a['timestamp']);
         return (
             <div className="m-list">
                 <ul>
-                    {friends.map((value, index) =>
-                        <li key={index} id={value.user_id} className={withFriend === value.user_id ? 'active' : ''} onClick={() => this.props.selectFriend(value)}>
+                    {sortedSessionFriends.map((value, index) =>
+                        <li key={index} id={value.user_id} className={withFriend === value.user_id ? 'active' : ''} onClick={() => this.props.selectFriendAction(value.user_id)}>
                             <img className="avatar" width="30" height="30" src={value.user_avatar} />
                             <p className="name">{value.user_name}</p>
                         </li>
@@ -60,7 +82,7 @@ class Message extends Component {
         const { scrollbars } = this.refs;
             scrollbars.scrollToBottom();
     }
-    
+
     componentDidUpdate() {
         const { scrollbars } = this.refs;
         if(this.props.scrollToBottom)
@@ -140,16 +162,21 @@ class Chat extends Component {
                     user_id: 3,
                     user_name: 'webpack',
                     user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672074502&username=@38c0273ca7c16b65a5bf82d67c1d20f0d4bfefd5bc099f1bb88affeff176779d&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
+                },
+                {
+                    user_id: 4,
+                    user_name: '7788',
+                    user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672067228&username=@f7b7de17a4892fd3536827d974c0f3bb&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
                 }
             ],
 
-            // 会话列表(和朋友列表user_id同步)
+            // 会话列表(与sessionFriends顺序一致)
             sessions: [
                 {
                     user_id: 2,
                     messages: [
                         {
-                            text: 'Hello，这是一个基于Vue + Webpack构建的简单chat示例，聊天记录保存在localStorge。简单演示了Vue的基础特性和webpack配置。',
+                            text: 'He&ll & o，这是一个基于Vue + Webpack构建的简单chat示例，聊天记录保存在localStorge。简单演示了Vue的基础特性和webpack配置。',
                             date: '2018-03-9 12:34:45',
                             self: true
                         },
@@ -183,15 +210,21 @@ class Chat extends Component {
                             date: '2018-03-9 12:34:45',
                             self: true
                         }
-                    ]
+                    ],
+                    timestamp: 0
                 },
                 {
                     user_id: 3,
-                    messages: []
+                    messages: [],
+                    timestamp: 1
                 }
             ],
+            //进行中会话索引
             sessionIndex: 0,
+            //是否滚动到底部
             scrollToBottom: true,
+            //搜索朋友关键字
+            search: null,
         };
     }
 
@@ -207,6 +240,7 @@ class Chat extends Component {
                     self: true
                 });
                 sessions[this.state.sessionIndex].myInput = '';
+                sessions[this.state.sessionIndex].timestamp = moment().unix();;
             } else if (this.state.sessionIndex >= 0) {
                 sessions[this.state.sessionIndex].myInput = text;
             } else {
@@ -220,9 +254,9 @@ class Chat extends Component {
     }
 
     //设置选中的朋友
-    selectFriend(item) {
+    selectFriendAction(user_id) {
         this.setState({
-            sessionIndex: this.state.friends.indexOf(item),
+            sessionIndex: this.state.sessions.indexOf(this.state.sessions.filter(item => item.user_id === user_id)[0]),
             scrollToBottom: true,
         });
     }
@@ -250,11 +284,6 @@ class Chat extends Component {
         });
     }
 
-    //进行中会话
-    session() {
-        return this.state.sessions[this.state.sessionIndex] || null;
-    }
-
     render() {
         const session = this.state.sessions[this.state.sessionIndex] || null;
         const withFriend = this.withFriend(session);
@@ -262,7 +291,7 @@ class Chat extends Component {
             <div id='chat'>
                 <div className="sidebar">
                     <Card user={this.state.user}></Card>
-                    <List friends={this.state.friends} withFriend={withFriend} selectFriend={this.selectFriend.bind(this)}></List>
+                    <List sessions={this.state.sessions} friends={this.state.friends} withFriend={withFriend} selectFriendAction={this.selectFriendAction.bind(this)}></List>
                 </div>
                 <div className="main">
                     <Message user={this.state.user} withFriend={withFriend} session={session} scrollToBottom={this.state.scrollToBottom}></Message>
