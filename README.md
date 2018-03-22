@@ -6,5 +6,5 @@ author: "binna"
 header-img: ""
 catalog: true
 tags:
-    - diary
+    - 
 ---
