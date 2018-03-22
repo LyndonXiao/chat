@@ -210,6 +210,7 @@ io.on('connection', function (socket) {
             socket.broadcast.emit('newImg', socket.username, imgData, color);
         }
     });
+
     //获取和指定用户的历史聊天记录
     socket.on('history', function (withUser, page = 1) {
         console.log('history...');
@@ -241,8 +242,27 @@ io.on('connection', function (socket) {
         })
     });
 
+    //获取历史会话列表
     socket.on('history_list', function () {
         console.log('history_list...');
+        var username = socket.username;
+        var sql = 'SELECT u.user_id, u.user_name, a.created_at as timestamp FROM ( SELECT CASE WHEN to_username = ? THEN from_username WHEN from_username = ? THEN to_username END AS username, created_at FROM message ORDER BY created_at DESC ) AS a JOIN users u ON u.user_name = a.username left join (select count(id) as unread_num, from_username as username from message where to_username = ? group by from_username) as b on b.username = a.username GROUP BY a.username';
+        query(sql, [username, username, username], function (err, result, fields) {
+            if (err) {
+                console.log('unexpected error:' + err.message);
+                socket.emit('history_list_error', 'unexpected error:' + err.message);
+            }
+
+            if (result){
+                result.map((item, k) => {
+                    item.timestamp = moment().unix();
+                })
+                socket.emit('history_list_success', result);
+            }
+        });
+    });
+
+    socket.on('frined_list', function() {
         var username = socket.username;
         var sql = 'SELECT u.user_id, u.user_name, a.created_at as timestamp FROM ( SELECT CASE WHEN to_username = ? THEN from_username WHEN from_username = ? THEN to_username END AS username, created_at FROM message ORDER BY created_at DESC ) AS a JOIN users u ON u.user_name = a.username left join (select count(id) as unread_num, from_username as username from message where to_username = ? group by from_username) as b on b.username = a.username GROUP BY a.username';
         query(sql, [username, username, username], function (err, result, fields) {

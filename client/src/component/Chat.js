@@ -205,7 +205,10 @@ class Chat extends Component {
             });
             //登录成功
             socket.on('login_success', function () {
+                //获取历史会话列表
                 socket.emit('history_list');
+                //获取好友列表
+                socket.emit('friend_list');
             });
             //系统通知
             socket.on('system', function (user_name, userCount, type) {
@@ -257,6 +260,18 @@ class Chat extends Component {
             socket.on('history_list_error', (msg) => {
                 console.log(msg);
             })
+            //获取好友列表成功
+            socket.on('friend_list_success', (data) => {
+                if (data.length > 0) {
+                    that.setState({
+                        friends: data,
+                    });
+                }
+            });
+            //获取好友列表失败
+            socket.on('friend_list_error', (msg) => {
+                console.log(msg);
+            });
             //强制断开连接
             socket.on('force_disconnect', function () {
                 console.log('force_disconnect');
