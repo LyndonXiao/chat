@@ -69,12 +69,65 @@ ul {
 }
 
 .m-card {
-    padding: 9pt;
+    padding: 9pt 9pt 0 9pt;
     border-bottom: 1px solid #24272c
 }
 
 .m-card footer {
-    margin-top: 10px
+    border-top: 1px solid #292c33;
+    margin-top: 9pt
+}
+
+.m-card .tab {
+    overflow: hidden;
+    position: relative;
+}
+
+.m-card .tab .tab-item {
+    float: left;
+    width: 50%;
+    position: relative;
+}
+
+.m-card .tab-item a {
+    display: block;
+    text-align: center;
+}
+
+.tab-comment {
+    display: inline-block;
+    vertical-align: middle;
+    width: 35px;
+    height: 35px;
+    background: url(https://res.wx.qq.com/a/wx_fed/webwx/res/static/css/3d77c66cd37282eb9aae25295f7b0302@2x.png) no-repeat;
+    background-position: -150px -96px;
+    -webkit-background-size: 487px 462px;
+    background-size: 487px 462px;
+}
+
+.tab-comment.active {
+    background: url(https://res.wx.qq.com/a/wx_fed/webwx/res/static/css/3d77c66cd37282eb9aae25295f7b0302@2x.png) no-repeat;
+    background-position: -185px -96px;
+    -webkit-background-size: 487px 462px;
+    background-size: 487px 462px;
+}
+
+.tab-contact {
+    display: inline-block;
+    vertical-align: middle;
+    width: 35px;
+    height: 35px;
+    background: url(https://res.wx.qq.com/a/wx_fed/webwx/res/static/css/3d77c66cd37282eb9aae25295f7b0302@2x.png) no-repeat;
+    background-position: -220px -96px;
+    -webkit-background-size: 487px 462px;
+    background-size: 487px 462px;
+}
+
+.tab-contact.active {
+    background: url(https://res.wx.qq.com/a/wx_fed/webwx/res/static/css/3d77c66cd37282eb9aae25295f7b0302@2x.png) no-repeat;
+    background-position: -304px -246px;
+    -webkit-background-size: 487px 462px;
+    background-size: 487px 462px;
 }
 
 .m-card .avatar,
@@ -90,19 +143,6 @@ ul {
     display: inline-block;
     margin: 0 0 0 15px;
     font-size: 1pc
-}
-
-.m-card .search {
-    padding: 0 10px;
-    width: 100%;
-    font-size: 9pt;
-    color: #fff;
-    height: 30px;
-    line-height: 30px;
-    border: 1px solid #3a3a3a;
-    border-radius: 4px;
-    outline: 0;
-    background-color: #26292e
 }
 
 .m-list li {

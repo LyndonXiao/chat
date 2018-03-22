@@ -1,15 +1,14 @@
 import React, { Component } from 'react';
-import { Link, Redirect } from 'react-router-dom';
+import { Redirect } from 'react-router-dom';
 import moment from 'moment';
 import { Scrollbars } from 'react-custom-scrollbars';
+import Cookies from 'universal-cookie';
+import io from 'socket.io-client';
 import './Chat.css';
 
+const cookies = new Cookies();
+
 class Card extends Component {
-
-    constructor(props) {
-        super(props);
-    }
-
     render() {
         const user = this.props.user;
         return (
@@ -19,7 +18,10 @@ class Card extends Component {
                     <p className="name">{user.user_name}</p>
                 </header>
                 <footer>
-                    <input className="search" type="text" placeholder="search user..." />
+                    <div className='tab'>
+                        <div className="tab-item" onClick={() => this.props.switchTabAction(0)}><a href="#"><i className={this.props.activeTab === 0 ? "tab-comment active" : "tab-comment"} /></a></div>
+                        <div className="tab-item" onClick={() => this.props.switchTabAction(1)}><a href="#"><i className={this.props.activeTab === 1 ? "tab-contact active" : "tab-contact"} /></a></div>
+                    </div>
                 </footer>
             </div>
         );
@@ -28,24 +30,20 @@ class Card extends Component {
 
 class List extends Component {
 
-    constructor(props) {
-        super(props);
-    }
-
     sessionFriends() {
         const friends = this.props.friends;
         const sessions = this.props.sessions;
         var sessionFriends = [];
         sessions.forEach(item => {
             friends.forEach(frined => {
-                if(frined.user_id === item.user_id){
-                var sessionFriend = {
-                    user_id: frined.user_id,
-                    user_name: frined.user_name,
-                    user_avatar: frined.user_avatar,
-                    timestamp: item.timestamp
-                }
-                sessionFriends.push(sessionFriend);
+                if (frined.user_id === item.user_id) {
+                    var sessionFriend = {
+                        user_id: frined.user_id,
+                        user_name: frined.user_name,
+                        user_avatar: frined.user_avatar,
+                        timestamp: item.timestamp
+                    }
+                    sessionFriends.push(sessionFriend);
                 }
             })
         })
@@ -54,14 +52,19 @@ class List extends Component {
     }
 
     render() {
-        const sessionFriends = this.sessionFriends();
         const withFriend = this.props.withFriend ? this.props.withFriend.user_id : null;
-        const sortedSessionFriends = sessionFriends.sort((a, b) => b['timestamp'] - a['timestamp']);
+        if (this.props.activeTab === 0) {//会话列表
+            var sessionFriends = this.sessionFriends();
+            sessionFriends = sessionFriends.sort((a, b) => b['timestamp'] - a['timestamp']);
+        } else if (this.props.activeTab === 1) {//朋友列表
+            var sessionFriends = this.props.friends;
+        }
+
         return (
             <div className="m-list">
                 <ul>
-                    {sortedSessionFriends.map((value, index) =>
-                        <li key={index} id={value.user_id} className={withFriend === value.user_id ? 'active' : ''} onClick={() => this.props.selectFriendAction(value.user_id)}>
+                    {sessionFriends.map((value, index) =>
+                        <li key={index} id={value.user_id} className={this.props.activeTab === 0 && withFriend === value.user_id ? 'active' : ''} onClick={() => this.props.selectFriendAction(value.user_id)}>
                             <img className="avatar" width="30" height="30" src={value.user_avatar} />
                             <p className="name">{value.user_name}</p>
                         </li>
@@ -74,18 +77,14 @@ class List extends Component {
 
 class Message extends Component {
 
-    constructor(props) {
-        super(props);
-    }
-
     componentDidMount() {
         const { scrollbars } = this.refs;
-            scrollbars.scrollToBottom();
+        scrollbars.scrollToBottom();
     }
 
     componentDidUpdate() {
         const { scrollbars } = this.refs;
-        if(this.props.scrollToBottom)
+        if (this.props.scrollToBottom)
             scrollbars.scrollToBottom();
     }
 
@@ -123,17 +122,13 @@ class Message extends Component {
 
 class Text extends Component {
 
-    constructor(props) {
-        super(props);
-    }
-
     componentDidMount() {
     }
 
     render() {
         return (
             <div className="m-text">
-                <textarea id='myInput' placeholder="按 Enter 发送" value={this.props.session.myInput || ''} onInput={e => this.props.myInput(e)}></textarea>
+                <textarea id='myInput' placeholder="按 Enter 发送" value={this.props.session ? this.props.session.myInput : ''} onInput={e => this.props.myInput(e)} disabled={!this.props.session ? true : false }></textarea>
             </div>
         );
     }
@@ -159,76 +154,118 @@ class Chat extends Component {
                     user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672084244&username=@2b29b76adfba683c16d8e142cef9b666de530eaff918f9bea5fbf6da5af809fc&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
                 },
                 {
-                    user_id: 3,
+                    user_id: 4,
                     user_name: 'webpack',
                     user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672074502&username=@38c0273ca7c16b65a5bf82d67c1d20f0d4bfefd5bc099f1bb88affeff176779d&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
                 },
                 {
-                    user_id: 4,
+                    user_id: 3,
                     user_name: '7788',
                     user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672067228&username=@f7b7de17a4892fd3536827d974c0f3bb&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
                 }
             ],
 
             // 会话列表(与sessionFriends顺序一致)
-            sessions: [
-                {
-                    user_id: 2,
-                    messages: [
-                        {
-                            text: 'He&ll & o，这是一个基于Vue + Webpack构建的简单chat示例，聊天记录保存在localStorge。简单演示了Vue的基础特性和webpack配置。',
-                            date: '2018-03-9 12:34:45',
-                            self: true
-                        },
-                        {
-                            text: '项目地址: https://sc.chinaz.com/jiaoben/',
-                            date: '2018-03-9 12:34:45'
-                        },
-                        {
-                            text: 'Hello，这是一个基于Vue + Webpack构建的简单chat示例，聊天记录保存在localStorge。简单演示了Vue的基础特性和webpack配置。',
-                            date: '2018-03-9 12:34:45'
-                        },
-                        {
-                            text: '项目地址: https://sc.chinaz.com/jiaoben/',
-                            date: '2018-03-9 12:34:45',
-                            self: true
-                        },
-                        {
-                            text: 'Hello，这是一个基于Vue + Webpack构建的简单chat示例，聊天记录保存在localStorge。简单演示了Vue的基础特性和webpack配置。',
-                            date: '2018-03-9 12:34:45'
-                        },
-                        {
-                            text: '项目地址: https://sc.chinaz.com/jiaoben/',
-                            date: '2018-03-9 12:34:45'
-                        },
-                        {
-                            text: 'Hello，这是一个基于Vue + Webpack构建的简单chat示例，聊天记录保存在localStorge。简单演示了Vue的基础特性和webpack配置。',
-                            date: '2018-03-9 12:34:45'
-                        },
-                        {
-                            text: '项目地址: https://sc.chinaz.com/jiaoben/',
-                            date: '2018-03-9 12:34:45',
-                            self: true
-                        }
-                    ],
-                    timestamp: 0
-                },
-                {
-                    user_id: 3,
-                    messages: [],
-                    timestamp: 1
-                }
-            ],
+            sessions: [],
             //进行中会话索引
-            sessionIndex: 0,
+            sessionIndex: -1,
             //是否滚动到底部
             scrollToBottom: true,
-            //搜索朋友关键字
-            search: null,
+            //活动tab
+            activeTab: 0,
+            //是否已经登录
+            isLogin: true,
         };
     }
 
+    componentDidUpdate() {
+        localStorage.setItem('sessions', JSON.stringify(this.state.sessions));
+    }
+
+    componentWillMount() {
+        const user_token = cookies.get('user_token');
+        var that = this;
+        if (!user_token) {
+            that.setState({
+                isLogin: false,
+            });
+        } else {
+            //建立socket连接
+            const socket = io();
+            socket.on('connect', () => {
+                console.log('connected');
+                socket.emit('login', user_token);
+            });
+            //登录失败
+            socket.on('login_error', function (msg) {
+                alert(msg);
+                that.setState({
+                    isLogin: false,
+                });
+            });
+            //登录成功
+            socket.on('login_success', function () {
+                socket.emit('history_list');
+            });
+            //系统通知
+            socket.on('system', function (user_name, userCount, type) {
+                // var msg = user_name + (type === 'login' ? ' joined' : ' left');
+                //指定系统消息显示为红色
+                // that._displayNewMsg('system ', msg, 'red');
+            });
+            //新文字消息
+            socket.on('newMsg', function (user, msg, color) {
+                // that._displayNewMsg(user, msg, color);
+            });
+            //新图片消息
+            socket.on('newImg', function (user, img) {
+                // that._displayImage(user, img);
+            });
+            //获取和谁的历史聊天记录成功
+            socket.on('history_success', function (withUser, data) {
+                var sessions = that.state.sessions;
+                var session = sessions.filter(item => item.user_name === withUser);
+                if (session.length > 0) {
+                    session = session[0];
+                    var messages = session.messages || [];
+                    sessions[sessions.indexOf(session)].messages = messages.concat(data);
+                    that.setState({
+                        sessions: sessions,
+                    });
+                }
+                //不考虑不在会话列表的历史记录
+            });
+            //获取和谁的历史聊天记录失败
+            socket.on('history_error', function (msg) {
+                console.log(msg)
+            });
+            //历史聊天列表获取成功
+            socket.on('history_list_success', (data) => {
+                if (data.length > 0) {
+                    data.forEach((item, k) => {
+                        data[k].messages = [];
+                    })
+                    that.setState({
+                        sessions: data,
+                    });
+                    data.forEach((item, k) => {
+                        socket.emit('history', item.user_name, 1);
+                    })
+                }
+            })
+            //历史聊天列表获取失败
+            socket.on('history_list_error', (msg) => {
+                console.log(msg);
+            })
+            //强制断开连接
+            socket.on('force_disconnect', function () {
+                console.log('force_disconnect');
+            });
+        }
+    }
+
     componentDidMount() {
+        //设置输入监听
         document.getElementById('myInput').addEventListener('keyup', e => {
             var sessions = this.state.sessions;
             const keycode = e.keyCode;
@@ -240,24 +277,60 @@ class Chat extends Component {
                     self: true
                 });
                 sessions[this.state.sessionIndex].myInput = '';
-                sessions[this.state.sessionIndex].timestamp = moment().unix();;
+                sessions[this.state.sessionIndex].timestamp = moment().unix();
+                sessions = sessions.sort((a, b) => b['timestamp'] - a['timestamp']);
+                this.setState({
+                    sessions: sessions,
+                    sessionIndex: 0,
+                });
             } else if (this.state.sessionIndex >= 0) {
                 sessions[this.state.sessionIndex].myInput = text;
+                this.setState({
+                    sessions: sessions,
+                });
             } else {
                 return;
             }
-
-            this.setState({
-                sessions: sessions,
-            });
         })
+
+        //获取本地聊天记录
+        const localSessions = localStorage.getItem('sessions');
+        if (localSessions)
+            this.setState({
+                sessions: JSON.parse(localSessions),
+            });
     }
 
     //设置选中的朋友
     selectFriendAction(user_id) {
+        var sessions = this.state.sessions;
+        var session = this.state.sessions.filter(item => item.user_id === user_id);
+        if (session.length === 0) {
+            session = {
+                user_id: user_id,
+                messages: [],
+                timestamp: moment().unix(),
+            }
+
+            sessions.push(session);
+        }
+        if (session.length > 0 && this.state.activeTab === 1) {
+            session = session[0];
+            sessions[sessions.indexOf(session)].timestamp = moment().unix();
+        }
+
         this.setState({
+            sessions: sessions,
             sessionIndex: this.state.sessions.indexOf(this.state.sessions.filter(item => item.user_id === user_id)[0]),
             scrollToBottom: true,
+            activeTab: 0,
+        });
+    }
+
+    //切换tab
+    switchTabAction(tab_index) {
+        this.setState({
+            activeTab: tab_index
         });
     }
 
@@ -285,16 +358,20 @@ class Chat extends Component {
     }
 
     render() {
+        //未登录则跳转回登录
+        if (!this.state.isLogin)
+            return <Redirect push to="/login" />;
+
         const session = this.state.sessions[this.state.sessionIndex] || null;
         const withFriend = this.withFriend(session);
         return (
             <div id='chat'>
                 <div className="sidebar">
-                    <Card user={this.state.user}></Card>
-                    <List sessions={this.state.sessions} friends={this.state.friends} withFriend={withFriend} selectFriendAction={this.selectFriendAction.bind(this)}></List>
+                    <Card user={this.state.user} activeTab={this.state.activeTab} switchTabAction={this.switchTabAction.bind(this)}></Card>
+                    <List activeTab={this.state.activeTab} sessions={this.state.sessions} friends={this.state.friends} withFriend={withFriend} selectFriendAction={this.selectFriendAction.bind(this)}></List>
                 </div>
                 <div className="main">
-                    <Message user={this.state.user} withFriend={withFriend} session={session} scrollToBottom={this.state.scrollToBottom}></Message>
+                    <Message user={this.state.user} withFriend={withFriend} session={session} scrollToBottom={this.state.scrollToBottom} myInput={this.myInput.bind(this)}></Message>
                     <Text session={session} myInput={this.myInput.bind(this)}></Text>
                 </div>
             </div>
