@@ -8,7 +8,6 @@ import './Chat.css';
 
 const cookies = new Cookies();
 var socket = null;
-var timestamp = 0;
 
 class Card extends Component {
     render() {
@@ -16,7 +15,7 @@ class Card extends Component {
         return (
             <div className="m-card">
                 <header>
-                    <img alt="user_avatar" className="avatar" width="40" height="40" src={user.user_avatar} />
+                    <img alt="avatar" className="avatar" width="40" height="40" src={user.user_avatar} />
                     <p className="name">{user.nickname}</p>
                 </header>
                 <footer>
@@ -68,11 +67,27 @@ class List extends Component {
                 <ul>
                     {sessionFriends.map((value, index) =>
                         <li key={index} id={value.user_id} className={this.props.activeTab === 0 && withFriend === value.user_id ? 'active' : ''} onClick={() => this.props.selectFriendAction(value.user_id)}>
-                            <img alt="session_avatar" className="avatar" width="30" height="30" src={value.user_avatar} />
+                            <img alt="avatar" className="avatar" width="30" height="30" src={value.user_avatar} />
                             <p className="name">{value.nickname}</p>
                         </li>
                     )}
                 </ul>
+            </div>
+        );
+    }
+}
+
+class SessionHeader extends Component {
+    render () {
+        const friend = this.props.withFriend;
+        
+        return (
+            <div className="session-title">
+                {friend && this.props.activeTab === 0 && <header>
+                <img alt="avatar" className="avatar" width="30" height="30" src={friend.user_avatar} />
+                    <p className="name">{friend.nickname}</p>
+                </header>
+                }
             </div>
         );
     }
@@ -99,9 +114,18 @@ class Message extends Component {
         const session = this.props.session;
         const me = this.props.user;
         const friend = this.props.withFriend;
-        const messages = this.props.activeTab !== 0 ? [] : (session ? session.messages : []);
+        var messages = this.props.activeTab !== 0 ? [] : (session ? session.messages : []);
+        var timestamp = 0;
+        messages = messages.map((item, k) => {
+            const date = moment(item.date).unix();
+            if(( date - timestamp) / 60 > 5){
+                item.showTime = true;
+                timestamp = date;
+            }
+            return item;
+        })
         return (
-            <Scrollbars ref="scrollbars" style={{ width: '100%', height: 'calc(100% - 10pc)' }}
+            <Scrollbars ref="scrollbars" style={{ width: '100%', height: 'calc(100% - 10pc - 51px)' }}
                 autoHide
                 autoHideTimeout={1000}
                 autoHideDuration={200}>
@@ -110,9 +134,9 @@ class Message extends Component {
                         {
                             messages.map((value, index) =>
                                 <li key={index}>
-                                    {((moment(value.date).unix() - timestamp) / 60 > 5) && <p className="time"><span>{value.date}</span></p>}
+                                    {value.showTime && <p className="time"><span>{value.date}</span></p>}
                                     <div className={value.self ? 'main self' : 'main'}>
-                                        <img alt="session_avatar" className="avatar" width="30" height="30" src={value.self ? me.user_avatar : friend.user_avatar} />
+                                        <img alt="avatar" className="avatar" width="30" height="30" src={value.self ? me.user_avatar : friend.user_avatar} />
                                         <div className="text">{value.text}</div>
                                     </div>
                                 </li>
@@ -249,12 +273,13 @@ class Chat extends Component {
             });
             //获取和谁的历史聊天记录成功
             socket.on('history_success', function (withUser, data) {
+                // console.log(data);
                 var sessions = that.state.sessions;
                 var session = sessions.filter(item => item.user_name === withUser);
                 if (session.length > 0) {
                     session = session[0];
                     var messages = session.messages || [];
-                    sessions[sessions.indexOf(session)].messages = messages.concat(data);
+                    sessions[sessions.indexOf(session)].messages = messages.concat(data).sort((a, b) => moment(a['date']).unix() - moment(b['date']).unix());
                     that.setState({
                         sessions: sessions,
                     });
@@ -411,6 +436,7 @@ class Chat extends Component {
                     <List activeTab={this.state.activeTab} sessions={this.state.sessions} friends={this.state.friends} withFriend={withFriend} selectFriendAction={this.selectFriendAction.bind(this)}></List>
                 </div>
                 <div className="main">
+                    <SessionHeader withFriend={withFriend} activeTab={this.state.activeTab} />
                     <Message activeTab={this.state.activeTab} user={this.state.user} withFriend={withFriend} session={session} scrollToBottom={this.state.scrollToBottom}></Message>
                     <Text activeTab={this.state.activeTab} session={session} myInput={this.myInput.bind(this)}></Text>
                 </div>
