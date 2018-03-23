@@ -141,7 +141,7 @@ io.on('connection', function (socket) {
     socket.on('login', function (user_token) {
         console.log('login...');
 
-        var sql = 'select user_id, user_name from users where token = ?';
+        var sql = 'select user_id, user_name, user_avatar, nickname from users where token = ?';
         query(sql, [user_token], function (err, result, fields) {
             if (err) {
                 socket.emit('login_error', "unexpected error: " + err.message)
@@ -149,7 +149,7 @@ io.on('connection', function (socket) {
             }
 
             //没找到用户
-            if (!result) {
+            if (result.length <= 0) {
                 socket.emit('login_error', "user not found");
                 return;
             }
@@ -162,8 +162,9 @@ io.on('connection', function (socket) {
                     console.log('user ' + username + ' login at other place');
                 }
                 socket.username = username;
+                socket.user_id = result[0].user_id;
                 online_users[username] = socket.id;
-                socket.emit('login_success');
+                socket.emit('login_success', result[0]);
                 io.sockets.emit('system', username, Object.keys(online_users).length, 'login');
                 return;
             }
@@ -179,9 +180,8 @@ io.on('connection', function (socket) {
     });
 
     //接收新消息
-    socket.on('postMsg', function (msg, color, toUser) {
+    socket.on('postMsg', function (msg, toUser) {
         console.log('postMsg...');
-        //将消息发送到除自己外的所有用户
         if (toUser) {
             var sql = 'insert into message(from_username, to_username, content, type) values(?, ?, ?, ?);';
             query(sql, [socket.username, toUser, msg, 1], function (err, result, fields) {
@@ -195,9 +195,10 @@ io.on('connection', function (socket) {
                     console.log('message insert success');
                 }
             });
-            socket.to(online_users[toUser]).emit('newMsg', socket.username, msg, color);
+            socket.to(online_users[toUser]).emit('newMsg', socket.username, msg);
         } else {
-            socket.broadcast.emit('newMsg', socket.username, msg, color);
+            //将消息发送到除自己外的所有用户
+            socket.broadcast.emit('newMsg', socket.username, msg);
         }
     });
     //接收用户发来的图片
@@ -220,7 +221,7 @@ io.on('connection', function (socket) {
             socket.emit('history_error', 'params missing');
 
         var username = socket.username;
-        var sql = 'SELECT CASE WHEN to_username = ? THEN 0 WHEN from_username = ? THEN 1 END AS self, content, type, created_at FROM message where (from_username = ? and to_username = ?) or (from_username = ? and to_username = ?) ORDER BY created_at DESC limit ?, ?;';
+        var sql = 'SELECT CASE WHEN to_username = ? THEN 0 WHEN from_username = ? THEN 1 END AS self, content, type, created_at FROM message where (from_username = ? and to_username = ?) or (from_username = ? and to_username = ?) ORDER BY created_at ASC limit ?, ?;';
         query(sql, [username, username, username, withUser, withUser, username, offset, paget_size], function (err, result, fields) {
             if (err) {
                 console.log('unexpected error:' + err.message);
@@ -228,7 +229,10 @@ io.on('connection', function (socket) {
             }
 
             var messages = [];
-            if (result) {
+            if (result.length <= 0)
+                socket.emit('history_error', '无记录');
+
+            else {
                 result.forEach(value => {
                     var message = {
                         text: value.content,
@@ -253,7 +257,9 @@ io.on('connection', function (socket) {
                 socket.emit('history_list_error', 'unexpected error:' + err.message);
             }
 
-            if (result){
+            if (result.length <= 0)
+                socket.emit('history_list_error', '无记录');
+            else {
                 result.map((item, k) => {
                     item.timestamp = moment().unix();
                 })
@@ -262,21 +268,21 @@ io.on('connection', function (socket) {
         });
     });
 
-    socket.on('frined_list', function() {
-        var username = socket.username;
-        var sql = 'SELECT u.user_id, u.user_name, a.created_at as timestamp FROM ( SELECT CASE WHEN to_username = ? THEN from_username WHEN from_username = ? THEN to_username END AS username, created_at FROM message ORDER BY created_at DESC ) AS a JOIN users u ON u.user_name = a.username left join (select count(id) as unread_num, from_username as username from message where to_username = ? group by from_username) as b on b.username = a.username GROUP BY a.username';
-        query(sql, [username, username, username], function (err, result, fields) {
+    //获取好友列表
+    socket.on('friend_list', function () {
+        console.log('frined_list...');
+        var user_id = socket.user_id;
+        var sql = 'SELECT u.user_id, u.user_name, u.nickname, u.user_avatar FROM friends f join users u on u.user_id = f.friend_id where f.user_id = ?';
+        query(sql, [user_id], function (err, result, fields) {
             if (err) {
                 console.log('unexpected error:' + err.message);
                 socket.emit('history_list_error', 'unexpected error:' + err.message);
             }
 
-            if (result){
-                result.map((item, k) => {
-                    item.timestamp = moment().unix();
-                })
-                socket.emit('history_list_success', result);
-            }
+            if (result.length <= 0)
+                socket.emit('friend_list_error', '无记录');
+            else
+                socket.emit('friend_list_success', result);
         });
     });
 });

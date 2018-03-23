@@ -7,6 +7,8 @@ import io from 'socket.io-client';
 import './Chat.css';
 
 const cookies = new Cookies();
+var socket = null;
+var timestamp = 0;
 
 class Card extends Component {
     render() {
@@ -14,8 +16,8 @@ class Card extends Component {
         return (
             <div className="m-card">
                 <header>
-                    <img className="avatar" width="40" height="40" src={user.user_avatar} />
-                    <p className="name">{user.user_name}</p>
+                    <img alt="user_avatar" className="avatar" width="40" height="40" src={user.user_avatar} />
+                    <p className="name">{user.nickname}</p>
                 </header>
                 <footer>
                     <div className='tab'>
@@ -40,6 +42,7 @@ class List extends Component {
                     var sessionFriend = {
                         user_id: frined.user_id,
                         user_name: frined.user_name,
+                        nickname: frined.nickname,
                         user_avatar: frined.user_avatar,
                         timestamp: item.timestamp
                     }
@@ -53,11 +56,11 @@ class List extends Component {
 
     render() {
         const withFriend = this.props.withFriend ? this.props.withFriend.user_id : null;
+        var sessionFriends = [];
         if (this.props.activeTab === 0) {//会话列表
-            var sessionFriends = this.sessionFriends();
-            sessionFriends = sessionFriends.sort((a, b) => b['timestamp'] - a['timestamp']);
+            sessionFriends = this.sessionFriends().sort((a, b) => b['timestamp'] - a['timestamp']);
         } else if (this.props.activeTab === 1) {//朋友列表
-            var sessionFriends = this.props.friends;
+            sessionFriends = this.props.friends;
         }
 
         return (
@@ -65,8 +68,8 @@ class List extends Component {
                 <ul>
                     {sessionFriends.map((value, index) =>
                         <li key={index} id={value.user_id} className={this.props.activeTab === 0 && withFriend === value.user_id ? 'active' : ''} onClick={() => this.props.selectFriendAction(value.user_id)}>
-                            <img className="avatar" width="30" height="30" src={value.user_avatar} />
-                            <p className="name">{value.user_name}</p>
+                            <img alt="session_avatar" className="avatar" width="30" height="30" src={value.user_avatar} />
+                            <p className="name">{value.nickname}</p>
                         </li>
                     )}
                 </ul>
@@ -96,7 +99,7 @@ class Message extends Component {
         const session = this.props.session;
         const me = this.props.user;
         const friend = this.props.withFriend;
-        const messages = session ? session.messages : [];
+        const messages = this.props.activeTab !== 0 ? [] : (session ? session.messages : []);
         return (
             <Scrollbars ref="scrollbars" style={{ width: '100%', height: 'calc(100% - 10pc)' }}
                 autoHide
@@ -104,14 +107,17 @@ class Message extends Component {
                 autoHideDuration={200}>
                 <div className="m-message">
                     <ul>
-                        {messages.map((value, index) =>
-                            <li key={index}>
-                                <p className="time"><span>{value.date}</span></p>
-                                <div className={value.self ? 'main self' : 'main'}>
-                                    <img className="avatar" width="30" height="30" src={value.self ? me.user_avatar : friend.user_avatar} />
-                                    <div className="text">{value.text}</div>
-                                </div>
-                            </li>)}
+                        {
+                            messages.map((value, index) =>
+                                <li key={index}>
+                                    {((moment(value.date).unix() - timestamp) / 60 > 5) && <p className="time"><span>{value.date}</span></p>}
+                                    <div className={value.self ? 'main self' : 'main'}>
+                                        <img alt="session_avatar" className="avatar" width="30" height="30" src={value.self ? me.user_avatar : friend.user_avatar} />
+                                        <div className="text">{value.text}</div>
+                                    </div>
+                                </li>
+                            )
+                        }
 
                     </ul>
                 </div>
@@ -122,13 +128,10 @@ class Message extends Component {
 
 class Text extends Component {
 
-    componentDidMount() {
-    }
-
     render() {
         return (
             <div className="m-text">
-                <textarea id='myInput' placeholder="按 Enter 发送" value={this.props.session ? this.props.session.myInput : ''} onInput={e => this.props.myInput(e)} disabled={!this.props.session ? true : false }></textarea>
+                <textarea id='myInput' placeholder="按 Enter 发送" value={this.props.session ? this.props.session.myInput : ''} onInput={e => this.props.myInput(e)} disabled={this.props.activeTab !== 0 ? true : (!this.props.session ? true : false)}></textarea>
             </div>
         );
     }
@@ -140,30 +143,10 @@ class Chat extends Component {
         super(props);
         this.state = {
             // 登录用户
-            user: {
-                user_id: 1,
-                user_name: 'Coffce',
-                user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672067228&username=@f7b7de17a4892fd3536827d974c0f3bb&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
-            },
+            user: {},
 
             // 朋友列表
-            friends: [
-                {
-                    user_id: 2,
-                    user_name: '站长素材',
-                    user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672084244&username=@2b29b76adfba683c16d8e142cef9b666de530eaff918f9bea5fbf6da5af809fc&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
-                },
-                {
-                    user_id: 4,
-                    user_name: 'webpack',
-                    user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672074502&username=@38c0273ca7c16b65a5bf82d67c1d20f0d4bfefd5bc099f1bb88affeff176779d&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
-                },
-                {
-                    user_id: 3,
-                    user_name: '7788',
-                    user_avatar: 'https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgeticon?seq=672067228&username=@f7b7de17a4892fd3536827d974c0f3bb&skey=@crypt_b49389e7_e0c7c827a1a63b7b36695413c3b82d8d'
-                }
-            ],
+            friends: [],
 
             // 会话列表(与sessionFriends顺序一致)
             sessions: [],
@@ -191,7 +174,7 @@ class Chat extends Component {
             });
         } else {
             //建立socket连接
-            const socket = io();
+            socket = io();
             socket.on('connect', () => {
                 console.log('connected');
                 socket.emit('login', user_token);
@@ -204,9 +187,14 @@ class Chat extends Component {
                 });
             });
             //登录成功
-            socket.on('login_success', function () {
+            socket.on('login_success', function (userInfo) {
+                that.setState({
+                    user: userInfo,
+                });
+                console.log('fetch history_list')
                 //获取历史会话列表
                 socket.emit('history_list');
+                console.log('fetch friend_list')
                 //获取好友列表
                 socket.emit('friend_list');
             });
@@ -217,8 +205,43 @@ class Chat extends Component {
                 // that._displayNewMsg('system ', msg, 'red');
             });
             //新文字消息
-            socket.on('newMsg', function (user, msg, color) {
-                // that._displayNewMsg(user, msg, color);
+            socket.on('newMsg', function (user_name, msg) {
+                console.log('newMsg');
+                var sessions = that.state.sessions;
+                var session = sessions.filter(item => item.user_name === user_name);
+                var friend = that.state.friends.filter(item => item.user_name === user_name);
+                if (friend.length > 0) {
+                    //在好友列表中
+                    if (session.length > 0) {
+                        //在会话中
+                        session = session[0];
+                        sessions[sessions.indexOf(session)].timestamp = moment().unix();
+                        var message = {
+                            date: moment().format('YYYY-MM-DD HH:mm:ss'),
+                            text: msg,
+                            self: false
+                        }
+                        sessions[sessions.indexOf(session)].messages.push(message);
+                    } else {
+                        //不在会话中
+                        session = {
+                            user_id: friend[0].user_id,
+                            user_name: friend[0].user_name,
+                            messages: [{
+                                date: moment().format('YYYY-MM-DD HH:mm:ss'),
+                                text: msg,
+                                self: false
+                            }],
+                            timestamp: moment().unix(),
+                        }
+
+                        sessions.push(session);
+                    }
+                }
+
+                that.setState({
+                    sessions: sessions,
+                });
             });
             //新图片消息
             socket.on('newImg', function (user, img) {
@@ -284,7 +307,7 @@ class Chat extends Component {
         document.getElementById('myInput').addEventListener('keyup', e => {
             var sessions = this.state.sessions;
             const keycode = e.keyCode;
-            const text = e.target.value;
+            const text = e.target.value.trim();
             if (keycode === 13 && text && this.state.sessionIndex >= 0) {
                 sessions[this.state.sessionIndex].messages.push({
                     text: text,
@@ -298,6 +321,8 @@ class Chat extends Component {
                     sessions: sessions,
                     sessionIndex: 0,
                 });
+                //发送消息
+                socket.emit('postMsg', text, sessions[this.state.sessionIndex].user_name)
             } else if (this.state.sessionIndex >= 0) {
                 sessions[this.state.sessionIndex].myInput = text;
                 this.setState({
@@ -386,8 +411,8 @@ class Chat extends Component {
                     <List activeTab={this.state.activeTab} sessions={this.state.sessions} friends={this.state.friends} withFriend={withFriend} selectFriendAction={this.selectFriendAction.bind(this)}></List>
                 </div>
                 <div className="main">
-                    <Message user={this.state.user} withFriend={withFriend} session={session} scrollToBottom={this.state.scrollToBottom} myInput={this.myInput.bind(this)}></Message>
-                    <Text session={session} myInput={this.myInput.bind(this)}></Text>
+                    <Message activeTab={this.state.activeTab} user={this.state.user} withFriend={withFriend} session={session} scrollToBottom={this.state.scrollToBottom}></Message>
+                    <Text activeTab={this.state.activeTab} session={session} myInput={this.myInput.bind(this)}></Text>
                 </div>
             </div>
         );
