@@ -221,7 +221,7 @@ io.on('connection', function (socket) {
             socket.emit('history_error', 'params missing');
 
         var username = socket.username;
-        var sql = 'SELECT CASE WHEN to_username = ? THEN 0 WHEN from_username = ? THEN 1 END AS self, content, type, created_at FROM message where (from_username = ? and to_username = ?) or (from_username = ? and to_username = ?) ORDER BY created_at DESC limit ?, ?;';
+        var sql = 'SELECT CASE WHEN to_username = ? THEN 0 WHEN from_username = ? THEN 1 END AS self, content, type, status, created_at FROM message where (from_username = ? and to_username = ?) or (from_username = ? and to_username = ?) ORDER BY created_at DESC limit ?, ?;';
         query(sql, [username, username, username, withUser, withUser, username, offset, paget_size], function (err, result, fields) {
             if (err) {
                 console.log('unexpected error:' + err.message);
@@ -237,7 +237,8 @@ io.on('connection', function (socket) {
                     var message = {
                         text: value.content,
                         date: moment(value.created_at).format('YYYY-MM-DD HH:mm:ss'),
-                        self: value.self
+                        self: value.self,
+                        unRead: value.status
                     }
                     messages.push(message);
                 })

@@ -21,7 +21,6 @@ body {
     font: 14px/1.4em 'Helvetica Neue', Helvetica, 'Microsoft Yahei', Arial, sans-serif;
     background: #f5f5f5 url('./images/bg1.jpg') no-repeat center;
     background-size: cover;
-    font-smoothing: antialiased;
 }
 
 ul {
@@ -150,7 +149,8 @@ ul {
     border-bottom: 1px solid #292c33;
     cursor: pointer;
     -webkit-transition: background-color .1s;
-    transition: background-color .1s
+    transition: background-color .1s;
+    position: relative;
 }
 
 .m-list li:hover {
@@ -175,6 +175,13 @@ ul {
     margin: 0 0 0 15px
 }
 
+.m-list .tag {
+    background-color: #F14641;
+    border-radius: 50%;
+    width: 21px;
+    height: 21px;
+}
+
 .m-text {
     height: 10pc;
     border-top: 1px solid #ddd
@@ -187,6 +194,7 @@ ul {
     border: none;
     outline: 0;
     font-family: Micrsofot Yahei;
+    font-size: 10pt;
     resize: none
 }
 
@@ -226,7 +234,7 @@ ul {
     max-width: calc(100% - 40px);
     min-height: 30px;
     line-height: 2.5;
-    font-size: 9pt;
+    font-size: 10pt;
     text-align: left;
     word-break: break-all;
     background-color: #fafafa;
@@ -286,4 +294,37 @@ ul {
     margin: 0 0 0 15px;
     font-size: 14px;
     vertical-align: middle;
+}
+
+.row{
+    display: flex;
+    flex-direction: row;
+}
+
+.col{
+    display: flex;
+    flex-direction: column;
+}
+
+.mainCenter{
+    justify-content: center;
+}
+.mainStart{
+    justify-content: flex-start;
+}
+.mainEnd{
+    justify-content: flex-end;
+}
+.mainBetween{
+    justify-content: space-between;
+}
+
+.subStart{
+    align-items: flex-start;
+}
+.subCenter{
+    align-items: center;
+}
+.subEnd{
+    align-items: flex-end;
 }
