@@ -54,6 +54,18 @@ var helper = {
         for (var k in o)
             if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
         return fmt;
+    },
+    "objectToArray": function objectToArray(s) {
+        try {
+            return Array.prototype.slice.call(s);
+        } catch (e) {
+            var arr = [];
+            for (var i = 0, len = s.length; i < len; i++) {
+                //arr.push(s[i]);  
+                arr[i] = s[i];     //据说这样比push快
+            }
+            return arr;
+        }
     }
 }
 

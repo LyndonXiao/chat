@@ -5,6 +5,7 @@
   "dependencies": {
     "less": "^3.0.1",
     "less-loader": "^4.1.0",
+    "qiniu-js": "^2.2.1",
     "react": "^16.2.0",
     "react-custom-scrollbars": "^4.2.1",
     "react-dom": "^16.2.0",

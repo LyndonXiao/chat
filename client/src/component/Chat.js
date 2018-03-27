@@ -5,6 +5,7 @@ import { Scrollbars } from 'react-custom-scrollbars';
 import Cookies from 'universal-cookie';
 import io from 'socket.io-client';
 import classnames from 'classnames';
+import * as qiniu from 'qiniu-js';
 import './Chat.css';
 
 const cookies = new Cookies();
@@ -22,8 +23,8 @@ class Card extends Component {
                 </header>
                 <footer>
                     <div className='tab'>
-                        <div className="tab-item" onClick={() => this.props.switchTabAction(0)}><a href="#"><i className={this.props.activeTab === 0 ? "tab-comment active" : "tab-comment"} /></a></div>
-                        <div className="tab-item" onClick={() => this.props.switchTabAction(1)}><a href="#"><i className={this.props.activeTab === 1 ? "tab-contact active" : "tab-contact"} /></a></div>
+                        <div className="tab-item" onClick={() => this.props.switchTabAction(0)}><span><i className={this.props.activeTab === 0 ? "tab-comment active" : "tab-comment"} /></span></div>
+                        <div className="tab-item" onClick={() => this.props.switchTabAction(1)}><span><i className={this.props.activeTab === 1 ? "tab-contact active" : "tab-contact"} /></span></div>
                     </div>
                 </footer>
             </div>
@@ -112,7 +113,12 @@ class SessionHeader extends Component {
 
 //会话消息显示窗口
 class Message extends Component {
-
+    constructor(props) {
+        super(props)
+        this.state = {
+            height: 0,
+        }
+    }
     componentDidMount() {
         const { scrollbars } = this.refs;
         scrollbars.scrollToBottom();
@@ -143,10 +149,13 @@ class Message extends Component {
             return item;
         })
         return (
-            <Scrollbars ref="scrollbars" style={{ width: '100%', height: 'calc(100% - 10pc - 51px)' }}
+            <Scrollbars ref="scrollbars" style={{ width: '100%', height: '419px' }}
                 autoHide
                 autoHideTimeout={1000}
-                autoHideDuration={200}>
+                autoHideDuration={200}
+                autoHeight
+                autoHeightMin={419}
+                autoHeightMax={419}>
                 <div className="m-message">
                     <ul>
                         {
@@ -155,7 +164,13 @@ class Message extends Component {
                                     {value.showTime && <p className="time"><span>{value.date}</span></p>}
                                     <div className={value.self ? 'main self' : 'main'}>
                                         <img alt="avatar" className="avatar" width="30" height="30" src={value.self ? me.user_avatar : friend.user_avatar} />
-                                        <div className="text">{value.text}</div>
+                                        {
+                                            value.img
+                                                ?
+                                                <div className='image'><img alt={value.text} src={value.text} /></div>
+                                                :
+                                                <div className="text">{value.text}</div>
+                                        }
                                     </div>
                                 </li>
                             )
@@ -174,7 +189,17 @@ class Text extends Component {
     render() {
         return (
             <div className="m-text" style={{ display: this.props.activeTab !== 0 || !this.props.session ? 'none' : 'block' }}>
-                <textarea id='myInput' placeholder="按 Enter 发送" value={this.props.session ? this.props.session.myInput : ''} onInput={e => this.props.myInput(e)} disabled={this.props.activeTab !== 0 || !this.props.session ? true : false}></textarea>
+                <div className="toolbar">
+                    <i className="web_wechat_face" title="表情"></i>
+                    <i className="web_wechat_pic" title="图片和文件" onClick={() => document.getElementById("file").click()}></i>
+                    <input id="file" type="file" style={{ display: 'none' }} />
+                </div>
+                <textarea
+                    id='myInput' placeholder="按 Enter 发送"
+                    value={this.props.session ? this.props.session.myInput : ''}
+                    onInput={e => this.props.myInput(e)}
+                    disabled={this.props.activeTab !== 0 || !this.props.session ? true : false}>
+                </textarea>
             </div>
         );
     }
@@ -267,7 +292,6 @@ class Chat extends Component {
                         unRead: 1
                     }
                     sessions[sessions.indexOf(session)].messages.push(message);
-                    var messages = sessions[sessions.indexOf(session)].messages;
                 } else {
                     //不在会话中
                     session = {
@@ -289,8 +313,43 @@ class Chat extends Component {
                 });
             });
             //新图片消息
-            socket.on('newImg', function (user, img) {
-                // that._displayImage(user, img);
+            socket.on('newImg', function (user_id, img_url) {
+                console.log('newImg');
+                var sessions = that.state.sessions;
+                var session = sessions.filter(item => item.user_id === user_id);
+
+                if (session.length > 0) {
+                    //在会话中
+                    session = session[0];
+                    sessions[sessions.indexOf(session)].timestamp = moment().unix();
+                    var message = {
+                        date: moment().format('YYYY-MM-DD HH:mm:ss'),
+                        text: img_url,
+                        self: false,
+                        unRead: 1,
+                        img: true
+                    }
+                    sessions[sessions.indexOf(session)].messages.push(message);
+                } else {
+                    //不在会话中
+                    session = {
+                        user_id: user_id,
+                        messages: [{
+                            date: moment().format('YYYY-MM-DD HH:mm:ss'),
+                            text: img_url,
+                            self: false,
+                            unRead: 1,
+                            img: true
+                        }],
+                        timestamp: moment().unix()
+                    }
+
+                    sessions.push(session);
+                }
+
+                that.setState({
+                    sessions: sessions,
+                });
             });
             //获取和谁的历史聊天记录成功
             socket.on('history_success', function (withUser, data) {
@@ -364,7 +423,7 @@ class Chat extends Component {
                 });
                 sessions[this.state.sessionIndex].myInput = '';
                 sessions[this.state.sessionIndex].timestamp = moment().unix();
-                sessions = sessions.sort((a, b) => b['timestamp'] - a['timestamp']);
+                // sessions = sessions.sort((a, b) => b['timestamp'] - a['timestamp']);
 
                 this.setState({
                     sessions: sessions,
@@ -383,6 +442,99 @@ class Chat extends Component {
             }
         })
 
+        //设置上传按钮监听
+        document.getElementById('file').addEventListener('change', e => {
+            var sessions = this.state.sessions;
+            var that = this;
+            const allowType = [
+                'image/jpeg',
+                'image/png',
+                'image/bmp',
+                'image/gif',
+            ];
+            var file = e.target.files[0];
+            if (!file)
+                return;
+            var type = file.type;
+            var key = file.name;
+            if (allowType.indexOf(type) < 0) {
+                alert('仅支持图片格式');
+                return;
+            }
+
+            fetch('/api/uptoken', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_token: cookies.get('user_token')
+                })
+            })
+                .then(res => res.json())
+                .then(
+                    (result) => {
+                        console.log(result)
+                        if (result.code === 200) {
+                            var token = result.data.token;
+                            var domain = result.data.domain;
+
+                            var config = {
+                                useCdnDomain: false,
+                                region: qiniu.region.z2
+                            };
+                            var putExtra = {
+                                fname: "",
+                                params: {},
+                                mimeType: null
+                            };
+
+                            var observer = {
+                                next(res) {
+                                    var total = res.total;
+                                    console.log("进度：" + total.percent + "% ");
+                                },
+                                error(err) {
+                                    console.log(err.message)
+                                },
+                                complete(res) {
+                                    // console.log(res)
+                                    var img_url = domain + '/' + res.name;
+                                    //发送消息
+                                    socket.emit('postImg', img_url, sessions[that.state.sessionIndex].user_id);
+                                    sessions[that.state.sessionIndex].messages.push({
+                                        text: img_url,
+                                        date: moment().format('YYYY-MM-DD HH:mm:ss'),
+                                        self: true,
+                                        img: true
+                                    });
+                                    sessions[that.state.sessionIndex].myInput = '';
+                                    sessions[that.state.sessionIndex].timestamp = moment().unix();
+                                    that.setState({
+                                        sessions: sessions,
+                                    });
+                                }
+                            }
+
+                            // 调用sdk上传接口获得相应的observable，控制上传和暂停
+                            var observable = qiniu.upload(file, key, token, putExtra, config);
+                            var subscription = observable.subscribe(observer);
+                        }
+                        else {
+                            alert(result.msg);
+
+                        }
+                    },
+                    // Note: it's important to handle errors here
+                    // instead of a catch() block so that we don't swallow
+                    // exceptions from actual bugs in components.
+                    (error) => {
+                        console.log(error)
+                    }
+                )
+        })
+
         //获取本地聊天记录
         // const localSessions = localStorage.getItem('sessions');
         // if (localSessions)
@@ -397,25 +549,26 @@ class Chat extends Component {
         var session = this.state.sessions.filter(item => item.user_id === user_id);
         //尚无会话
         if (session.length === 0) {
-            session = {
+            const newSession = {
                 user_id: user_id,
                 messages: [],
                 timestamp: moment().unix()
             }
 
-            sessions.push(session);
+            sessions.push(newSession);
         }
         else if (session.length > 0 && this.state.activeTab === 1) {
-            session = session[0];
-            sessions[sessions.indexOf(session)].timestamp = moment().unix();
+            const currentSession = session[0];
+            sessions[sessions.indexOf(currentSession)].timestamp = moment().unix();
         }
-        else if(session.length > 0){
+
+        if (session.length > 0) {
             session = session[0];
             var messages = session.messages;
-            messages = messages.map(item => {item.unRead = 0; return item});
+            messages = messages.map(item => { item.unRead = 0; return item });
             sessions[sessions.indexOf(session)].messages = messages;
         }
-        
+
         //更新已读
         socket.emit('message_read', user_id);
 

@@ -3,11 +3,16 @@ const bodyParser = require('body-parser'),
     path = require('path'),
     query = require('./mysql_pool'),
     moment = require('moment'),
-    helper = require('./helper');
+    qiniu = require('qiniu'),
+    helper = require('./helper'),
+    fs = require('fs');
 
 const app = express();
 var server = require('http').createServer(app);
 var io = require('socket.io').listen(server); //引入socket.io模块并绑定到服务器
+
+//在线用户
+var online_users = [];
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }))
@@ -122,6 +127,27 @@ app.post('/api/register', (req, res) => {
     });
 });
 
+//获取上传token
+app.post('/api/uptoken', (req, res) => {
+    const params = req.body;
+    if (helper.objectToArray(online_users).filter(item => item.user_token === params.user_token).length > 0) {
+        var config = JSON.parse(fs.readFileSync(path.resolve(__dirname, "qiniu-config.json")));
+        var mac = new qiniu.auth.digest.Mac(config.AccessKey, config.SecretKey);
+        var options = {
+            scope: config.Bucket,
+            deleteAfterDays: 7,
+            mimeLimit: 'image/jpeg;image/png;image/gif',
+            returnBody:
+                '{"name":"$(fname)","type":"$(mimeType)","fsize":$(fsize),"bucket":"$(bucket)", "key": "$(key)"}'
+        };
+
+        var putPolicy = new qiniu.rs.PutPolicy(options);
+        var token = putPolicy.uploadToken(mac);
+
+        res.json(helper.json(200, 'token get success', { token: token, domain: config.Domain }))
+    }
+});
+
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
 app.get('*', (req, res) => {
@@ -132,16 +158,13 @@ const port = process.env.PORT || 5000;
 server.listen(port);
 console.log(`server listening on ${port}`);
 
-//在线用户
-var online_users = [];
-
 //socket部分
 io.on('connection', function (socket) {
     //登录
     socket.on('login', function (user_token) {
         console.log('login...');
 
-        var sql = 'select user_id, user_name, user_avatar, nickname from users where token = ?';
+        var sql = 'select user_id, user_name, user_avatar, nickname, token from users where token = ?';
         query(sql, [user_token], function (err, result, fields) {
             if (err) {
                 socket.emit('login_error', "unexpected error: " + err.message)
@@ -156,12 +179,13 @@ io.on('connection', function (socket) {
             else {
                 const user_id = result[0].user_id;
                 const username = result[0].user_name;
+                const token = result[0].token;
                 if (online_users[user_id] !== undefined) {
-                    socket.to(online_users[user_id]).emit('force_disconnect');
+                    socket.to(online_users[user_id].socket_id).emit('force_disconnect');
                     console.log('user ' + username + ' login at other place');
                 }
                 socket.user_id = user_id;
-                online_users[user_id] = socket.id;
+                online_users[user_id] = { socket_id: socket.id, user_token: token };
                 socket.emit('login_success', result[0]);
                 io.sockets.emit('system', username, Object.keys(online_users).length, 'login');
                 return;
@@ -193,20 +217,32 @@ io.on('connection', function (socket) {
                     console.log('message insert success');
                 }
             });
-            socket.to(online_users[toUser]).emit('newMsg', socket.user_id, msg);
+            socket.to(online_users[toUser].socket_id).emit('newMsg', socket.user_id, msg);
         } else {
             //将消息发送到除自己外的所有用户
             socket.broadcast.emit('newMsg', socket.user_id, msg);
         }
     });
     //接收用户发来的图片
-    socket.on('postImg', function (imgData, color, toUser) {
+    socket.on('postImg', function (img_url, toUser) {
         console.log('postImg...');
         //通过一个newImg事件分发到除自己外的每个用户
         if (toUser) {
-            socket.to(online_users[toUser]).emit('newImg', socket.username, imgData, color);
+            var sql = 'insert into message(from_user, to_user, content, type) values(?, ?, ?, ?);';
+            query(sql, [socket.user_id, toUser, img_url, 2], function (err, result, fields) {
+                if (err) {
+                    console.log('unexpected error:' + err.message);
+                }
+
+                if (result.length <= 0) {
+                    console.log('server busy, try later')
+                } else {
+                    console.log('message insert success');
+                }
+            });
+            socket.to(online_users[toUser].socket_id).emit('newImg', socket.user_id, img_url);
         } else {
-            socket.broadcast.emit('newImg', socket.username, imgData, color);
+            socket.broadcast.emit('newImg', socket.user_id, img_url);
         }
     });
 
@@ -236,7 +272,8 @@ io.on('connection', function (socket) {
                         text: value.content,
                         date: moment(value.created_at).format('YYYY-MM-DD HH:mm:ss'),
                         self: value.self,
-                        unRead: value.status
+                        unRead: value.status,
+                        img: value.type === 2
                     }
                     messages.push(message);
                 })
@@ -286,14 +323,14 @@ io.on('connection', function (socket) {
     });
 
     //消息已读
-    socket.on('message_read', function(withUser) {
+    socket.on('message_read', function (withUser) {
         var sql = 'Update message set status = 0 where from_user = ?';
         query(sql, [withUser], function (err, result, fields) {
             if (err) {
                 console.log('unexpected error:' + err.message);
                 socket.emit('history_list_error', 'unexpected error:' + err.message);
             }
-            
+
             if (result.length <= 0)
                 socket.emit('message_read_error', '无记录');
             else

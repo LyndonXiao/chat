@@ -64,7 +64,7 @@ ul {
 }
 
 #chat .m-message {
-    height: calc(100% - 10pc)
+    height: 470px;
 }
 
 .m-card {
@@ -88,9 +88,13 @@ ul {
     position: relative;
 }
 
-.m-card .tab-item a {
+.m-card .tab-item span {
     display: block;
     text-align: center;
+}
+
+.m-card .tab .tab-item span i {
+    cursor: pointer;
 }
 
 .tab-comment {
@@ -127,6 +131,32 @@ ul {
     background-position: -304px -246px;
     -webkit-background-size: 487px 462px;
     background-size: 487px 462px;
+}
+
+.web_wechat_face {
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    background: url(https://res.wx.qq.com/a/wx_fed/webwx/res/static/css/3d77c66cd37282eb9aae25295f7b0302@2x.png) no-repeat;
+    background-position: -404px -398px;
+    -webkit-background-size: 487px 462px;
+    background-size: 487px 462px;
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 5px;
+}
+
+.web_wechat_pic {
+    display: inline-block;
+    vertical-align: middle;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    background: url(https://res.wx.qq.com/a/wx_fed/webwx/res/static/css/3d77c66cd37282eb9aae25295f7b0302@2x.png) no-repeat;
+    background-position: -120px -432px;
+    -webkit-background-size: 487px 462px;
+    background-size: 487px 462px;
+    margin: 0 5px;
 }
 
 .m-card .avatar,
@@ -183,19 +213,25 @@ ul {
 }
 
 .m-text {
-    height: 10pc;
+    height: 130px;
     border-top: 1px solid #ddd
 }
 
 .m-text textarea {
-    padding: 10px;
-    height: 100%;
+    padding: 5px 10px;
+    height: 100px;
     width: 100%;
     border: none;
     outline: 0;
     font-family: Micrsofot Yahei;
     font-size: 10pt;
     resize: none
+}
+
+.m-text .toolbar {
+    height: 30px;
+    padding: 5 17px;
+    background-color: white;
 }
 
 .m-message {
@@ -248,6 +284,15 @@ ul {
     right: 100%;
     border: 6px solid transparent;
     border-right-color: #fafafa
+}
+
+.m-message .image {
+    display: inline-block;
+    position: relative;
+    padding: 0 10px;
+    max-width: 250px;
+    background-color: #fafafa;
+    border-radius: 4px
 }
 
 .m-message .self {
@@ -327,4 +372,25 @@ ul {
 }
 .subEnd{
     align-items: flex-end;
+}
+
+a.btn {
+    text-decoration: none;
+}
+
+.btn_send {
+    background-color: #fff;
+    color: #222;
+    padding-left: 30px;
+    padding-right: 30px;
+}
+
+.btn {
+    display: inline-block;
+    border: 1px solid #c1c1c1;
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    padding: 3px 20px;
+    font-size: 14px;
 }
