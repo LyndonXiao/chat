@@ -6,6 +6,7 @@ import Cookies from 'universal-cookie';
 import io from 'socket.io-client';
 import classnames from 'classnames';
 import * as qiniu from 'qiniu-js';
+import AvatarEditor from 'react-avatar-editor'
 import './Chat.css';
 
 const cookies = new Cookies();
@@ -138,7 +139,7 @@ class Message extends Component {
         const session = this.props.session;
         const me = this.props.user;
         const friend = this.props.withFriend;
-        var messages = this.props.activeTab !== 0 ? [] : (session ? session.messages : []);
+        var messages = this.props.activeTab !== 0 || !session ? [] : session.messages;
         var timestamp = 0;
         messages = messages.map((item, k) => {
             const date = moment(item.date).unix();
@@ -149,7 +150,7 @@ class Message extends Component {
             return item;
         })
         return (
-            <Scrollbars ref="scrollbars" style={{ width: '100%', height: '419px' }}
+            <Scrollbars ref="scrollbars" style={{ width: '100%', height: '419px', display: this.props.activeTab !== 0 || !session ? 'none' : 'block'}}
                 autoHide
                 autoHideTimeout={1000}
                 autoHideDuration={200}
@@ -167,7 +168,7 @@ class Message extends Component {
                                         {
                                             value.img
                                                 ?
-                                                <div className='image'><img alt={value.text} src={value.text} /></div>
+                                                <div className='image'><img src={value.text} /></div>
                                                 :
                                                 <div className="text">{value.text}</div>
                                         }
